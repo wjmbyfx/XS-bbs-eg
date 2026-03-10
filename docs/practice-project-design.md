@@ -364,3 +364,129 @@ script/
 
 这样你会快速形成一套可复用的后端开发肌肉记忆。
 
+---
+
+## 16. 从 0 复刻实操顺序（精确到文件）
+
+> 目标：你可以严格按照下面顺序逐个文件创建/抄写，每一步都能运行或自测，不会“写一堆但跑不起来”。
+
+## 16.1 第 0 步：项目初始化（先能启动）
+
+1. `go.mod`（先初始化模块，拉依赖）
+2. `config.yaml`（先放本地可用的 mysql/redis/jwt 配置）
+3. `pkg/conf/conf.go`
+4. `pkg/conf/init.go`
+5. `pkg/logger/zap.go`
+6. `pkg/database/gorm.go`
+7. `pkg/cache/redis.go`
+8. `cmd/main.go`（最小启动：仅 `/ping`）
+
+完成标准：`go run ./cmd` 能启动并返回 ping。
+
+## 16.2 第 1 步：打好公共基础（错误码 + HTTP 封装）
+
+1. `internal/pkg/constant/e/code.go`
+2. `internal/pkg/constant/e/msg.go`
+3. `internal/pkg/constant/e/errors.go`
+4. `internal/pkg/constant/key.go`
+5. `internal/pkg/ginx/response.go`
+6. `internal/pkg/ginx/parse.go`
+7. `internal/pkg/ginx/validator.go`
+8. `internal/pkg/util/page.go`
+9. `internal/pkg/util/time.go`
+
+完成标准：任意接口可以统一返回 `{code,msg,data}`。
+
+## 16.3 第 2 步：先做用户登录态（最小闭环）
+
+### 2.1 工具与中间件先行
+1. `pkg/utils/hash/hash.go`
+2. `pkg/utils/jwt/jwt.go`
+3. `internal/pkg/middleware/log_recovery.go`
+4. `internal/pkg/middleware/cors.go`
+5. `internal/pkg/middleware/jwt.go`
+6. `internal/pkg/ginx/get_current_user.go`
+
+### 2.2 用户模块按“model -> repository -> service -> controller”
+1. `internal/app/user/model/entity.go`
+2. `internal/app/user/model/dto.go`
+3. `internal/app/user/model/http.go`
+4. `internal/app/user/repository/repo.go`
+5. `internal/app/user/repository/user.go`
+6. `internal/app/user/service/service.go`
+7. `internal/app/user/service/user.go`
+8. `internal/app/user/controller/controller.go`
+9. `internal/app/user/controller/user.go`
+10. `internal/app/user/build.go`
+
+完成标准：
+- 注册接口可写库。
+- 登录接口返回 JWT。
+- 受保护接口可从 token 读到 userID。
+
+## 16.4 第 3 步：社区模块（给发帖做前置数据）
+
+1. `internal/app/community/model/model.go`
+2. `internal/app/community/model/dto.go`
+3. `internal/app/community/repository/repo.go`
+4. `internal/app/community/repository/community.go`
+5. `internal/app/community/service/service.go`
+6. `internal/app/community/service/community.go`
+7. `internal/app/community/controller/controller.go`
+8. `internal/app/community/controller/community.go`
+9. `internal/app/community/build.go`
+
+完成标准：社区列表/详情可查询。
+
+## 16.5 第 4 步：帖子模块（核心业务）
+
+1. `pkg/utils/snowflake/snowflake.go`（发帖 ID 生成）
+2. `internal/app/post/model/entity.go`
+3. `internal/app/post/model/dto.go`
+4. `internal/app/post/model/http.go`
+5. `internal/app/post/repository/repo.go`
+6. `internal/app/post/repository/post.go`
+7. `internal/app/post/service/service.go`
+8. `internal/app/post/service/post.go`
+9. `internal/app/post/controller/controller.go`
+10. `internal/app/post/controller/post.go`
+11. `internal/app/post/build.go`
+
+完成标准：发帖、帖子列表、帖子详情打通。
+
+## 16.6 第 5 步：点赞与热度（Redis 能力）
+
+1. `internal/app/post/repository/redis.go`
+2. `internal/app/post/service/post.go`（补 vote 业务）
+3. `internal/app/post/controller/post.go`（补 vote 接口）
+
+完成标准：点赞/取消点赞可更新 Redis 集合与热度分。
+
+## 16.7 第 6 步：路由聚合与服务启动收口
+
+1. `internal/app/build.go`（拼装各模块路由）
+2. `pkg/servers/http.go`（统一注册 HTTP server）
+3. `cmd/main.go`（接入完整路由和中间件）
+
+完成标准：单进程启动后，所有 API 路由可访问。
+
+## 16.8 第 7 步：文档与脚本（最后补齐）
+
+1. `docs/swagger.yaml`
+2. `docs/swagger.json`
+3. `docs/docs.go`
+4. `script/my_app.sql`
+5. `README.md`
+6. `cmd/Makefile`
+
+完成标准：新同学只看 README + swagger + SQL 即可本地跑通。
+
+## 16.9 每阶段自检命令（建议固定执行）
+
+```bash
+go fmt ./...
+go test ./...
+go run ./cmd
+```
+
+如果你想“边复刻边验证”，建议每完成一个 `build.go` 就执行一次三连检查，问题会非常早暴露。
